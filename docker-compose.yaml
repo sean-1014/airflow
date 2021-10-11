@@ -1,0 +1,57 @@
+version: '3.8'
+
+x-airflow-build-common: &airflow-build-common
+    build:
+        context: .
+        dockerfile: Dockerfile
+    image: airflow
+    depends_on:
+        - postgres
+
+x-airflow-common: &airflow-common
+    <<: *airflow-build-common
+    env_file:
+        - .env
+    restart: always
+    logging:
+        options:
+            max-size: 10m
+            max-file: "3"
+    volumes:
+        - /opt/airflow/dags:/opt/airflow/dags
+        - /opt/airflow/logs:/opt/airflow/logs
+        - /opt/airflow/cache:/opt/airflow/cache
+services:
+    postgres:
+        image: postgres:11.5
+        restart: always
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        volumes:
+            - /opt/airflow/volumes/postgres-data:/var/lib/postgresql/data
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+
+    webserver:
+        <<: *airflow-common
+        ports:
+            - "80:8080"
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /opt/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+    scheduler:
+        <<: *airflow-common
+        command: scheduler
+
+    initdb:
+        <<: *airflow-build-common
+        entrypoint: /bin/bash
+        command: -c "airflow initdb"
