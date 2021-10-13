@@ -12,3 +12,4 @@ RUN apt-get update && \
      
 USER airflow
 COPY config/airflow.cfg /opt/airflow/
+COPY --chown=airflow:root ./.kube/config /opt/airflow/.kube/config
